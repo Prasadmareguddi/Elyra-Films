@@ -59,11 +59,11 @@ const collections = [
 
 // NEW: individual services for the "Customize Your Package" pop-up
 const customServices = [
-  { id: 'cinematography', name: 'Cinematography', price: 22000 },
-  { id: 'candid', name: 'Candid Photography', price: 9000 },
-  { id: 'traditional-photo', name: 'Traditional Photography with 40 Sheet Album', price: 32000 },
+  { id: 'cinematography', name: 'Cinematography', price: 26000 },
+  { id: 'candid', name: 'Candid Photography', price: 12000 },
+  { id: 'traditional-photo', name: 'Traditional Photography with 40 Sheet Album', price: 38000 },
   { id: 'traditional-video', name: 'Traditional Videography', price: 16000 },
-  { id: 'drone', name: 'Drone', price: 6000 },
+  { id: 'drone', name: 'Drone', price: 8000 },
   { id: 'haldi-mehandi', name: 'Haldi & Mehandi Photo before wedding', price: 10000 },
 ];
 
