@@ -7,6 +7,9 @@ const contactPhotos = {
 };
 const contactCollectionImage = getImage(contactPhotos.collection);
 
+// NEW: paste your Web3Forms access key here
+const WEB3FORMS_ACCESS_KEY = 'YOUR_WEB3FORMS_ACCESS_KEY';
+
 const collections = [
   {
     id: 1,
@@ -53,6 +56,18 @@ const collections = [
     popular: false,
   },
 ];
+
+// NEW: individual services for the "Customize Your Package" pop-up
+const customServices = [
+  { id: 'cinematography', name: 'Cinematography', price: 22000 },
+  { id: 'candid', name: 'Candid Photography', price: 9000 },
+  { id: 'traditional-photo', name: 'Traditional Photography with 40 Sheet Album', price: 32000 },
+  { id: 'traditional-video', name: 'Traditional Videography', price: 16000 },
+  { id: 'drone', name: 'Drone', price: 6000 },
+  { id: 'haldi-mehandi', name: 'Haldi & Mehandi Photo before wedding', price: 10000 },
+];
+
+const formatPrice = (value) => `₹${value.toLocaleString('en-IN')}`;
 
 // Placeholder testimonials — swap in real client reviews when ready.
 const reviews = [
@@ -113,6 +128,13 @@ const Contact = () => {
   const [availabilityForm, setAvailabilityForm] = useState({ serviceType: '', date: '' });
   const [availabilityStatus, setAvailabilityStatus] = useState('idle'); // idle | checking | available | unavailable
 
+  // NEW: customize package state
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [customizeStep, setCustomizeStep] = useState('select'); // select | summary
+  const [selectedServiceIds, setSelectedServiceIds] = useState([]);
+  const [customerForm, setCustomerForm] = useState({ name: '', email: '', phone: '' });
+  const [customSubmitStatus, setCustomSubmitStatus] = useState('idle'); // idle | sending | success | error
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -149,6 +171,74 @@ const Contact = () => {
     setTimeout(() => {
       setAvailabilityStatus('available');
     }, 1200);
+  };
+
+  // NEW: customize package handlers
+  const selectedServices = customServices.filter((s) => selectedServiceIds.includes(s.id));
+  const customTotal = selectedServices.reduce((sum, s) => sum + s.price, 0);
+
+  const openCustomizeModal = () => {
+    setCustomizeStep('select');
+    setCustomSubmitStatus('idle');
+    setIsCustomizeOpen(true);
+  };
+
+  const closeCustomizeModal = () => {
+    setIsCustomizeOpen(false);
+  };
+
+  const toggleService = (id) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleCustomizeDone = () => {
+    if (selectedServiceIds.length === 0) return;
+    setCustomizeStep('summary');
+  };
+
+  const handleCustomerChange = (e) => {
+    setCustomerForm({ ...customerForm, [e.target.name]: e.target.value });
+  };
+
+  const handleCustomSubmit = async (e) => {
+    e.preventDefault();
+    if (selectedServices.length === 0) return;
+
+    setCustomSubmitStatus('sending');
+
+    const servicesText = selectedServices
+      .map((s) => `${s.name} - ${formatPrice(s.price)}`)
+      .join('\n');
+
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          access_key: WEB3FORMS_ACCESS_KEY,
+          subject: 'New Custom Package Request - ELYRA FILM\'S',
+          from_name: 'ELYRA FILM\'S Website',
+          name: customerForm.name,
+          email: customerForm.email,
+          phone: customerForm.phone,
+          selected_services: servicesText,
+          total_price: formatPrice(customTotal),
+        }),
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        setCustomSubmitStatus('success');
+        setSelectedServiceIds([]);
+        setCustomerForm({ name: '', email: '', phone: '' });
+      } else {
+        setCustomSubmitStatus('error');
+      }
+    } catch (err) {
+      setCustomSubmitStatus('error');
+    }
   };
 
   return (
@@ -365,6 +455,17 @@ const Contact = () => {
             </div>
           ))}
         </div>
+
+        {/* NEW: Customize Your Package button */}
+        <div className="customize-cta">
+          <button
+            type="button"
+            className="customize-cta__btn"
+            onClick={openCustomizeModal}
+          >
+            Customize Your Package
+          </button>
+        </div>
       </section>
 
       {/* Quote / Scroll section */}
@@ -478,6 +579,162 @@ const Contact = () => {
                 </p>
               )}
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Customize Package Modal */}
+      {isCustomizeOpen && (
+        <div className="availability-modal__overlay" onClick={closeCustomizeModal}>
+          <div
+            className="availability-modal customize-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="availability-modal__close"
+              onClick={closeCustomizeModal}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            {/* Step 1: select services */}
+            {customizeStep === 'select' && (
+              <>
+                <span className="inquiry__label">Customize Your Package</span>
+                <p className="customize-modal__hint">
+                  Select the services you need.
+                </p>
+
+                <div className="customize-modal__list">
+                  {customServices.map((service) => {
+                    const checked = selectedServiceIds.includes(service.id);
+                    return (
+                      <label
+                        key={service.id}
+                        className={`customize-service ${checked ? 'customize-service--active' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="customize-service__checkbox"
+                          checked={checked}
+                          onChange={() => toggleService(service.id)}
+                        />
+                        <span className="customize-service__box">{checked ? '✓' : ''}</span>
+                        <span className="customize-service__name">{service.name}</span>
+                        <span className="customize-service__price">{formatPrice(service.price)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  className="inquiry__submit availability-modal__submit customize-modal__done"
+                  onClick={handleCustomizeDone}
+                  disabled={selectedServiceIds.length === 0}
+                >
+                  DONE
+                </button>
+              </>
+            )}
+
+            {/* Step 2: summary + total + submit */}
+            {customizeStep === 'summary' && customSubmitStatus !== 'success' && (
+              <form onSubmit={handleCustomSubmit}>
+                <span className="inquiry__label">Your Selected Services</span>
+
+                <ul className="customize-summary__list">
+                  {selectedServices.map((service) => (
+                    <li key={service.id} className="customize-summary__item">
+                      <span>{service.name}</span>
+                      <span>{formatPrice(service.price)}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="customize-summary__total">
+                  <span>TOTAL PACKAGE PRICE</span>
+                  <strong>{formatPrice(customTotal)}</strong>
+                </div>
+
+                <div className="customize-summary__fields">
+                  <div className="inquiry__field">
+                    <label className="inquiry__field-label">FULL NAME</label>
+                    <input
+                      type="text"
+                      name="name"
+                      className="inquiry__input"
+                      value={customerForm.name}
+                      onChange={handleCustomerChange}
+                      required
+                    />
+                  </div>
+                  <div className="inquiry__field">
+                    <label className="inquiry__field-label">EMAIL ADDRESS</label>
+                    <input
+                      type="email"
+                      name="email"
+                      className="inquiry__input"
+                      value={customerForm.email}
+                      onChange={handleCustomerChange}
+                      required
+                    />
+                  </div>
+                  <div className="inquiry__field">
+                    <label className="inquiry__field-label">PHONE NUMBER</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      className="inquiry__input"
+                      value={customerForm.phone}
+                      onChange={handleCustomerChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="inquiry__submit availability-modal__submit"
+                  disabled={customSubmitStatus === 'sending'}
+                >
+                  {customSubmitStatus === 'sending' ? 'SENDING...' : 'SUBMIT'}
+                </button>
+
+                <button
+                  type="button"
+                  className="customize-modal__back"
+                  onClick={() => setCustomizeStep('select')}
+                >
+                  ← Edit services
+                </button>
+
+                {customSubmitStatus === 'error' && (
+                  <p className="availability-modal__result availability-modal__result--unavailable">
+                    Something went wrong while sending. Please try again.
+                  </p>
+                )}
+              </form>
+            )}
+
+            {/* Success */}
+            {customSubmitStatus === 'success' && (
+              <div>
+                <span className="inquiry__label">Thank You</span>
+                <p className="availability-modal__result availability-modal__result--available">
+                  Your custom package request has been sent. We'll get back to you shortly.
+                </p>
+                <button
+                  type="button"
+                  className="inquiry__submit availability-modal__submit"
+                  onClick={closeCustomizeModal}
+                >
+                  CLOSE
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
